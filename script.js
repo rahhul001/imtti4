@@ -208,7 +208,7 @@ async function adminLogin(event) {
             currentUser = { type: 'admin', email: email, id: response.user.id };
             closeLoginModal();
             // Redirect to full-page admin dashboard
-            window.location.href = 'admin-dashboard-complete.html';
+            window.location.href = 'admin-dashboard.html';
         } else {
             showNotification('Invalid admin credentials', 'error');
         }
@@ -238,8 +238,8 @@ async function centerLogin(event) {
             // Store center email for dashboard access
             localStorage.setItem('currentCenterEmail', email);
             console.log('Redirecting to center dashboard...');
-            // Redirect to center dashboard
-            window.location.href = `center-dashboard-complete.html?email=${email}`;
+            // Redirect to center login page
+            window.location.href = 'center-login.html';
         } else {
             showNotification('Invalid center credentials', 'error');
         }

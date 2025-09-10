@@ -714,8 +714,8 @@
                 
                 const centerDiv = document.createElement('div');
                 centerDiv.className = 'list-item';
-                const statusColor = center.status === 'active' ? '#10b981' : '#ef4444';
-                const statusText = center.status === 'active' ? 'ACTIVE' : 'SUSPENDED';
+                const statusColor = center.is_active ? '#10b981' : '#ef4444';
+                const statusText = center.is_active ? 'ACTIVE' : 'SUSPENDED';
                 centerDiv.innerHTML = `
                     <h4>${center.name} <span style="color: ${statusColor}; font-size: 0.8em; margin-left: 10px;">[${statusText}]</span></h4>
                     <p><strong>Email:</strong> ${center.email}</p>
@@ -732,7 +732,7 @@
                         <button class="print-btn" onclick="exportCenterData('${center.id}')" style="background: #10b981;">
                             <i class="fas fa-download"></i> Export Data
                         </button>
-                        ${center.status === 'active' ? 
+                        ${center.is_active ? 
                             `<button class="print-btn" onclick="suspendCenter('${center.id}')" style="background: #f59e0b;">
                                 <i class="fas fa-ban"></i> Suspend Center
                             </button>` : 
@@ -1042,26 +1042,42 @@
             }
         }
         
-        function suspendCenter(centerId) {
+        async function suspendCenter(centerId) {
             if (confirm('Are you sure you want to suspend this center? They will not be able to login until unsuspended.')) {
-                const center = centers.find(c => c.id === centerId);
-                if (center) {
-                    center.status = 'suspended';
-                    saveData();
-                    loadCenters();
+                try {
+                    await api.updateCenter(centerId, { is_active: false });
                     alert('Center has been suspended successfully!');
+                    loadCenters();
+                } catch (error) {
+                    console.error('Error suspending center:', error);
+                    // Fallback to localStorage
+                    const center = centers.find(c => c.id === centerId);
+                    if (center) {
+                        center.is_active = false;
+                        saveData();
+                        loadCenters();
+                        alert('Center has been suspended successfully!');
+                    }
                 }
             }
         }
         
-        function unsuspendCenter(centerId) {
+        async function unsuspendCenter(centerId) {
             if (confirm('Are you sure you want to unsuspend this center? They will be able to login again.')) {
-                const center = centers.find(c => c.id === centerId);
-                if (center) {
-                    center.status = 'active';
-                    saveData();
-                    loadCenters();
+                try {
+                    await api.updateCenter(centerId, { is_active: true });
                     alert('Center has been unsuspended successfully!');
+                    loadCenters();
+                } catch (error) {
+                    console.error('Error unsuspending center:', error);
+                    // Fallback to localStorage
+                    const center = centers.find(c => c.id === centerId);
+                    if (center) {
+                        center.is_active = true;
+                        saveData();
+                        loadCenters();
+                        alert('Center has been unsuspended successfully!');
+                    }
                 }
             }
         }
@@ -1158,6 +1174,6 @@
             loadOverview();
         });
     </script>
-    <script src="api-client.js"></script>
+    <script src="api-client-complete.js"></script>
 </body>
 </html>

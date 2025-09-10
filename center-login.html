@@ -203,7 +203,7 @@
         }
 
         // Center login function
-        function centerLogin(event) {
+        async function centerLogin(event) {
             event.preventDefault();
             
             const email = document.getElementById('centerEmail').value;
@@ -211,30 +211,48 @@
             
             console.log('Center login attempt:', email);
             
-            const centers = loadData();
-            console.log('Available centers:', centers);
-            
-            const center = centers.find(c => c.email === email && c.password === password);
-            
-            if (center) {
-                // Check if center is suspended
-                if (center.status === 'suspended') {
-                    showError('This center account has been suspended. Please contact the administrator.');
-                    return;
+            try {
+                const response = await api.centerLogin(email, password);
+                if (response.success) {
+                    // Store center email for dashboard access
+                    localStorage.setItem('currentCenterEmail', email);
+                    localStorage.setItem('currentCenterId', response.user.id);
+                    
+                    showSuccess('Login successful! Redirecting to dashboard...');
+                    
+                    // Redirect to center dashboard
+                    setTimeout(() => {
+                        window.location.href = 'center-dashboard-new.html';
+                    }, 1000);
+                } else {
+                    showError('Invalid email or password. Please check your credentials.');
                 }
+            } catch (error) {
+                console.error('Center login error:', error);
+                // Fallback to localStorage
+                const centers = loadData();
+                const center = centers.find(c => c.email === email && c.password === password);
                 
-                // Store center email for dashboard access
-                localStorage.setItem('currentCenterEmail', email);
-                localStorage.setItem('currentCenterId', center.id);
-                
-                showSuccess('Login successful! Redirecting to dashboard...');
-                
-                // Redirect to center dashboard
-                setTimeout(() => {
-                    window.location.href = 'center-dashboard-new.html';
-                }, 1000);
-            } else {
-                showError('Invalid email or password. Please check your credentials.');
+                if (center) {
+                    // Check if center is suspended
+                    if (!center.is_active) {
+                        showError('This center account has been suspended. Please contact the administrator.');
+                        return;
+                    }
+                    
+                    // Store center email for dashboard access
+                    localStorage.setItem('currentCenterEmail', email);
+                    localStorage.setItem('currentCenterId', center.id);
+                    
+                    showSuccess('Login successful! Redirecting to dashboard...');
+                    
+                    // Redirect to center dashboard
+                    setTimeout(() => {
+                        window.location.href = 'center-dashboard-new.html';
+                    }, 1000);
+                } else {
+                    showError('Invalid email or password. Please check your credentials.');
+                }
             }
         }
 
@@ -251,5 +269,6 @@
             console.log('Center login page loaded');
         });
     </script>
+    <script src="api-client-complete.js"></script>
 </body>
 </html>

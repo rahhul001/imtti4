@@ -187,12 +187,36 @@ app.post('/api/centers', async (req, res) => {
         if (!pool) {
             return res.status(503).json({ error: 'Database not connected' });
         }
-        const { name, email, password, location, contact_person, phone } = req.body;    
+        
+        const {
+            name,
+            email,
+            password,
+            location,
+            contact_person,
+            phone
+        } = req.body;
+        
         const [result] = await pool.execute(
-            'INSERT INTO centers (name, email, password, location, contact_person, phone) VALUES (?, ?, ?, ?, ?, ?)',
-            [name, email, password, location, contact_person, phone]
+            'INSERT INTO centers (name, email, password, location, contact_person, phone, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [
+                name || null,
+                email || null,
+                password || null,
+                location || null,
+                contact_person || null,
+                phone || null,
+                true // Default to active
+            ]
         );
-        res.json({ id: result.insertId, ...req.body });
+        
+        res.json({ 
+            id: result.insertId, 
+            name: name,
+            email: email,
+            location: location,
+            is_active: true
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -204,11 +228,45 @@ app.put('/api/centers/:id', async (req, res) => {
             return res.status(503).json({ error: 'Database not connected' });
         }
         const { id } = req.params;
-        const { name, email, location, contact_person, phone, is_active } = req.body;
-        await pool.execute(
-            'UPDATE centers SET name = ?, email = ?, location = ?, contact_person = ?, phone = ?, is_active = ? WHERE id = ?',
-            [name, email, location, contact_person, phone, is_active, id]
-        );
+        const updates = req.body;
+        
+        // Build dynamic update query based on provided fields
+        const fields = [];
+        const values = [];
+        
+        if (updates.name !== undefined) {
+            fields.push('name = ?');
+            values.push(updates.name);
+        }
+        if (updates.email !== undefined) {
+            fields.push('email = ?');
+            values.push(updates.email);
+        }
+        if (updates.location !== undefined) {
+            fields.push('location = ?');
+            values.push(updates.location);
+        }
+        if (updates.contact_person !== undefined) {
+            fields.push('contact_person = ?');
+            values.push(updates.contact_person);
+        }
+        if (updates.phone !== undefined) {
+            fields.push('phone = ?');
+            values.push(updates.phone);
+        }
+        if (updates.is_active !== undefined) {
+            fields.push('is_active = ?');
+            values.push(updates.is_active);
+        }
+        
+        if (fields.length === 0) {
+            return res.status(400).json({ error: 'No valid fields to update' });
+        }
+        
+        values.push(id);
+        const query = `UPDATE centers SET ${fields.join(', ')} WHERE id = ?`;
+        
+        await pool.execute(query, values);
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -238,12 +296,45 @@ app.post('/api/students', async (req, res) => {
         if (!pool) {
             return res.status(503).json({ error: 'Database not connected' });
         }
-        const { name, email, phone, date_of_birth, center_id, photo, registration_id, course } = req.body;
+        
+        const {
+            name,
+            email,
+            phone,
+            date_of_birth,
+            center_id,
+            photo,
+            registration_id,
+            course,
+            address,
+            status,
+            password
+        } = req.body;
+        
         const [result] = await pool.execute(
-            'INSERT INTO students (name, email, phone, date_of_birth, center_id, photo, registration_id, course) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [name, email, phone, date_of_birth, center_id, photo, registration_id, course || 'Diploma Program']
+            'INSERT INTO students (name, email, phone, date_of_birth, center_id, photo, registration_id, course, address, status, password) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+                name || null,
+                email || null,
+                phone || null,
+                date_of_birth || null,
+                center_id || null,
+                photo || null,
+                registration_id || null,
+                course || 'Diploma Program',
+                address || null,
+                status || 'registered',
+                password || null
+            ]
         );
-        res.json({ id: result.insertId, ...req.body });
+        
+        res.json({ 
+            id: result.insertId, 
+            name: name,
+            email: email,
+            registration_id: registration_id,
+            center_id: center_id
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -255,11 +346,49 @@ app.put('/api/students/:id', async (req, res) => {
             return res.status(503).json({ error: 'Database not connected' });
         }
         const { id } = req.params;
-        const { name, email, phone, date_of_birth, photo, course, status } = req.body;
-        await pool.execute(
-            'UPDATE students SET name = ?, email = ?, phone = ?, date_of_birth = ?, photo = ?, course = ?, status = ? WHERE id = ?',
-            [name, email, phone, date_of_birth, photo, course, status, id]
-        );
+        const updates = req.body;
+        
+        // Build dynamic update query based on provided fields
+        const fields = [];
+        const values = [];
+        
+        if (updates.name !== undefined) {
+            fields.push('name = ?');
+            values.push(updates.name);
+        }
+        if (updates.email !== undefined) {
+            fields.push('email = ?');
+            values.push(updates.email);
+        }
+        if (updates.phone !== undefined) {
+            fields.push('phone = ?');
+            values.push(updates.phone);
+        }
+        if (updates.date_of_birth !== undefined) {
+            fields.push('date_of_birth = ?');
+            values.push(updates.date_of_birth);
+        }
+        if (updates.photo !== undefined) {
+            fields.push('photo = ?');
+            values.push(updates.photo);
+        }
+        if (updates.course !== undefined) {
+            fields.push('course = ?');
+            values.push(updates.course);
+        }
+        if (updates.status !== undefined) {
+            fields.push('status = ?');
+            values.push(updates.status);
+        }
+        
+        if (fields.length === 0) {
+            return res.status(400).json({ error: 'No valid fields to update' });
+        }
+        
+        values.push(id);
+        const query = `UPDATE students SET ${fields.join(', ')} WHERE id = ?`;
+        
+        await pool.execute(query, values);
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -290,12 +419,68 @@ app.post('/api/applications', async (req, res) => {
         if (!pool) {
             return res.status(503).json({ error: 'Database not connected' });
         }
-        const { application_number, student_id, center_id, data, status } = req.body;   
+        
+        // Extract all application data
+        const {
+            application_number,
+            full_name,
+            email,
+            phone,
+            date_of_birth,
+            age,
+            sex,
+            mother_tongue,
+            marital_status,
+            community,
+            father_husband_name,
+            local_address,
+            permanent_address,
+            place_of_birth,
+            course,
+            photo,
+            education,
+            center_id,
+            center_email,
+            status
+        } = req.body;
+        
+        // Create the data object with all application details
+        const applicationData = {
+            full_name: full_name || null,
+            email: email || null,
+            phone: phone || null,
+            date_of_birth: date_of_birth || null,
+            age: age || null,
+            sex: sex || null,
+            mother_tongue: mother_tongue || null,
+            marital_status: marital_status || null,
+            community: community || null,
+            father_husband_name: father_husband_name || null,
+            local_address: local_address || null,
+            permanent_address: permanent_address || null,
+            place_of_birth: place_of_birth || null,
+            course: course || 'Diploma Program',
+            photo: photo || null,
+            education: education || [],
+            center_email: center_email || null
+        };
+        
         const [result] = await pool.execute(
-            'INSERT INTO applications (application_number, student_id, center_id, data, status) VALUES (?, ?, ?, ?, ?)',
-            [application_number, student_id, center_id, JSON.stringify(data), status || 'pending']
+            'INSERT INTO applications (application_number, center_id, data, status) VALUES (?, ?, ?, ?)',
+            [
+                application_number || null,
+                center_id || null,
+                JSON.stringify(applicationData),
+                status || 'pending'
+            ]
         );
-        res.json({ id: result.insertId, ...req.body });
+        
+        res.json({ 
+            id: result.insertId, 
+            application_number: application_number,
+            center_id: center_id,
+            status: status || 'pending'
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -307,11 +492,29 @@ app.put('/api/applications/:id', async (req, res) => {
             return res.status(503).json({ error: 'Database not connected' });
         }
         const { id } = req.params;
-        const { status, data } = req.body;
-        await pool.execute(
-            'UPDATE applications SET status = ?, data = ? WHERE id = ?',
-            [status, JSON.stringify(data), id]
-        );
+        const updates = req.body;
+        
+        // Build dynamic update query based on provided fields
+        const fields = [];
+        const values = [];
+        
+        if (updates.status !== undefined) {
+            fields.push('status = ?');
+            values.push(updates.status);
+        }
+        if (updates.data !== undefined) {
+            fields.push('data = ?');
+            values.push(JSON.stringify(updates.data));
+        }
+        
+        if (fields.length === 0) {
+            return res.status(400).json({ error: 'No valid fields to update' });
+        }
+        
+        values.push(id);
+        const query = `UPDATE applications SET ${fields.join(', ')} WHERE id = ?`;
+        
+        await pool.execute(query, values);
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });

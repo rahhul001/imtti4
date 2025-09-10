@@ -507,24 +507,41 @@
         let applications = [];
         let marks = [];
 
-        // Load data from localStorage
-        function loadData() {
-            const centersData = localStorage.getItem('imtti_centers');
-            const studentsData = localStorage.getItem('imtti_students');
-            const applicationsData = localStorage.getItem('imtti_applications');
-            const marksData = localStorage.getItem('imtti_marks');
+        // Load data from database
+        async function loadData() {
+            try {
+                console.log('Loading data from database...');
+                centers = await api.getCenters();
+                students = await api.getStudents();
+                applications = await api.getApplications();
+                marks = await api.getMarks();
+                console.log('Data loaded from database:', {
+                    centers: centers.length,
+                    students: students.length,
+                    applications: applications.length,
+                    marks: marks.length
+                });
+            } catch (error) {
+                console.error('Error loading data from database:', error);
+                // Fallback to localStorage
+                const centersData = localStorage.getItem('imtti_centers');
+                const studentsData = localStorage.getItem('imtti_students');
+                const applicationsData = localStorage.getItem('imtti_applications');
+                const marksData = localStorage.getItem('imtti_marks');
 
-            if (centersData) {
-                centers = JSON.parse(centersData);
-            }
-            if (studentsData) {
-                students = JSON.parse(studentsData);
-            }
-            if (applicationsData) {
-                applications = JSON.parse(applicationsData);
-            }
-            if (marksData) {
-                marks = JSON.parse(marksData);
+                if (centersData) {
+                    centers = JSON.parse(centersData);
+                }
+                if (studentsData) {
+                    students = JSON.parse(studentsData);
+                }
+                if (applicationsData) {
+                    applications = JSON.parse(applicationsData);
+                }
+                if (marksData) {
+                    marks = JSON.parse(marksData);
+                }
+                console.log('Falling back to localStorage');
             }
         }
 
@@ -995,9 +1012,9 @@
         }
 
         // Initialize dashboard
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             try {
-                loadData();
+                await loadData();
                 
                 const centerEmail = localStorage.getItem('currentCenterEmail');
                 const centerId = localStorage.getItem('currentCenterId');
@@ -1006,7 +1023,7 @@
                     currentCenter = centers.find(c => c.email === centerEmail && c.id === centerId);
                     
                     if (currentCenter) {
-                        if (currentCenter.status === 'suspended') {
+                        if (currentCenter.is_active === false) {
                             alert('This center account has been suspended. Please contact the administrator.');
                             window.location.href = 'index.html';
                             return;

@@ -202,6 +202,22 @@
             }, 3000);
         }
 
+        // Load data from database
+        async function loadData() {
+            try {
+                console.log('Loading centers from database...');
+                const centers = await api.getCenters();
+                console.log('Centers loaded from database:', centers.length);
+                return centers;
+            } catch (error) {
+                console.error('Error loading centers from database:', error);
+                // Fallback to localStorage
+                const centers = JSON.parse(localStorage.getItem('imtti_centers') || '[]');
+                console.log('Falling back to localStorage, centers found:', centers.length);
+                return centers;
+            }
+        }
+
         // Center login function
         async function centerLogin(event) {
             event.preventDefault();
@@ -229,13 +245,18 @@
                 }
             } catch (error) {
                 console.error('Center login error:', error);
+                console.log('Falling back to localStorage...');
+                
                 // Fallback to localStorage
-                const centers = loadData();
+                const centers = await loadData();
+                console.log('Available centers for fallback:', centers);
+                
                 const center = centers.find(c => c.email === email && c.password === password);
+                console.log('Found center:', center);
                 
                 if (center) {
                     // Check if center is suspended
-                    if (!center.is_active) {
+                    if (center.is_active === false) {
                         showError('This center account has been suspended. Please contact the administrator.');
                         return;
                     }
@@ -251,6 +272,7 @@
                         window.location.href = 'center-dashboard-new.html';
                     }, 1000);
                 } else {
+                    console.log('Center not found with email:', email);
                     showError('Invalid email or password. Please check your credentials.');
                 }
             }

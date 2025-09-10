@@ -253,7 +253,7 @@ async function centerLogin(event) {
         console.log('Found center:', center);
         
         if (center) {
-            if (center.status === 'suspended') {
+            if (center.is_active === false) {
                 showNotification('This center account has been suspended. Please contact the administrator.', 'error');
                 return;
             }

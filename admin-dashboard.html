@@ -724,9 +724,11 @@
             centers.forEach(center => {
                 // Count students and applications for this center
                 const centerStudents = students.filter(s => s.centerId === center.id);
-                const allApplications = JSON.parse(localStorage.getItem('imtti_applications') || '[]');
+                // Use applications from database if available, otherwise fallback to localStorage
+                const allApplications = applications.length > 0 ? applications : JSON.parse(localStorage.getItem('imtti_applications') || '[]');
                 const centerApplications = allApplications.filter(app => 
-                    centerStudents.some(s => s.email === app.email)
+                    centerStudents.some(s => s.email === app.email) || 
+                    (app.centerId && app.centerId === center.id)
                 );
                 
                 const centerDiv = document.createElement('div');
@@ -757,6 +759,9 @@
                                 <i class="fas fa-check"></i> Unsuspend Center
                             </button>`
                         }
+                        <button class="print-btn" onclick="deleteCenter('${center.id}', '${center.name}')" style="background: #ef4444;">
+                            <i class="fas fa-trash"></i> Delete Center
+                        </button>
                     </div>
                 `;
                 centersList.appendChild(centerDiv);
@@ -794,8 +799,8 @@
         
         function loadCenterInfo(center) {
             const centerInfoContent = document.getElementById('centerInfoContent');
-            const statusColor = center.status === 'active' ? '#10b981' : '#ef4444';
-            const statusText = center.status === 'active' ? 'ACTIVE' : 'SUSPENDED';
+            const statusColor = center.is_active ? '#10b981' : '#ef4444';
+            const statusText = center.is_active ? 'ACTIVE' : 'SUSPENDED';
             centerInfoContent.innerHTML = `
                 <div class="list-item">
                     <h3>Center Information</h3>
@@ -807,7 +812,7 @@
                     <p><strong>Status:</strong> <span style="color: ${statusColor}; font-weight: bold;">${statusText}</span></p>
                     <p><strong>Registration Date:</strong> ${new Date(center.registeredDate).toLocaleDateString()}</p>
                     <div style="margin-top: 1rem;">
-                        ${center.status === 'active' ? 
+                        ${center.is_active ? 
                             `<button class="print-btn" onclick="suspendCenter('${center.id}')" style="background: #f59e0b;">
                                 <i class="fas fa-ban"></i> Suspend Center
                             </button>` : 
@@ -815,6 +820,9 @@
                                 <i class="fas fa-check"></i> Unsuspend Center
                             </button>`
                         }
+                        <button class="print-btn" onclick="deleteCenter('${center.id}', '${center.name}')" style="background: #ef4444;">
+                            <i class="fas fa-trash"></i> Delete Center
+                        </button>
                     </div>
                 </div>
             `;
@@ -851,7 +859,8 @@
         function loadCenterApplications(centerId) {
             const centerApplicationsContent = document.getElementById('centerApplicationsContent');
             const centerStudents = students.filter(s => s.centerId === centerId);
-            const allApplications = JSON.parse(localStorage.getItem('imtti_applications') || '[]');
+            // Use applications from database if available, otherwise fallback to localStorage
+            const allApplications = applications.length > 0 ? applications : JSON.parse(localStorage.getItem('imtti_applications') || '[]');
             
             // Get applications that belong to this center's students OR have centerId field
             const centerApplications = allApplications.filter(app => 
@@ -914,7 +923,8 @@
         }
         
         function printApplicationForm(applicationNumber) {
-            const allApplications = JSON.parse(localStorage.getItem('imtti_applications') || '[]');
+            // Use applications from database if available, otherwise fallback to localStorage
+            const allApplications = applications.length > 0 ? applications : JSON.parse(localStorage.getItem('imtti_applications') || '[]');
             const application = allApplications.find(app => app.applicationNumber === applicationNumber);
             
             if (application) {
@@ -1043,7 +1053,8 @@
         }
         
         function downloadPhoto(applicationNumber) {
-            const allApplications = JSON.parse(localStorage.getItem('imtti_applications') || '[]');
+            // Use applications from database if available, otherwise fallback to localStorage
+            const allApplications = applications.length > 0 ? applications : JSON.parse(localStorage.getItem('imtti_applications') || '[]');
             const application = allApplications.find(app => app.applicationNumber === applicationNumber);
             
             if (application && application.photo) {
@@ -1095,6 +1106,91 @@
                         loadCenters();
                         alert('Center has been unsuspended successfully!');
                     }
+                }
+            }
+        }
+
+        async function deleteCenter(centerId, centerName) {
+            // Show confirmation dialog with input field
+            const confirmationMessage = `⚠️ WARNING: This will permanently delete the center "${centerName}" and ALL associated data!\n\nThis action cannot be undone.\n\nTo confirm deletion, please type "DELETE" in the box below:`;
+            
+            const userInput = prompt(confirmationMessage);
+            
+            if (userInput === null) {
+                // User clicked cancel
+                return;
+            }
+            
+            if (userInput !== "DELETE") {
+                alert('❌ Deletion cancelled. You must type "DELETE" exactly to confirm.');
+                return;
+            }
+            
+            // Double confirmation
+            const doubleConfirm = confirm(`⚠️ FINAL WARNING!\n\nYou are about to permanently delete:\n- Center: ${centerName}\n- All students registered by this center\n- All applications from this center\n- All marks and data\n\nThis action CANNOT be undone!\n\nAre you absolutely sure?`);
+            
+            if (!doubleConfirm) {
+                alert('❌ Deletion cancelled.');
+                return;
+            }
+            
+            try {
+                console.log('Deleting center:', centerId, centerName);
+                
+                // Delete center from database
+                await api.deleteCenter(centerId);
+                
+                // Also delete associated students and applications
+                const centerStudents = students.filter(s => s.centerId === centerId);
+                const centerApplications = applications.filter(app => app.centerId === centerId);
+                
+                // Delete students
+                for (const student of centerStudents) {
+                    try {
+                        await api.deleteStudent(student.id);
+                    } catch (error) {
+                        console.error('Error deleting student:', student.id, error);
+                    }
+                }
+                
+                // Delete applications
+                for (const application of centerApplications) {
+                    try {
+                        await api.deleteApplication(application.id);
+                    } catch (error) {
+                        console.error('Error deleting application:', application.id, error);
+                    }
+                }
+                
+                alert(`✅ Center "${centerName}" and all associated data have been permanently deleted!`);
+                
+                // Reload data to reflect changes
+                await loadData();
+                loadCenters();
+                
+            } catch (error) {
+                console.error('Error deleting center:', error);
+                
+                // Fallback to localStorage
+                const centerIndex = centers.findIndex(c => c.id === centerId);
+                if (centerIndex !== -1) {
+                    // Remove center
+                    centers.splice(centerIndex, 1);
+                    
+                    // Remove associated students
+                    const centerStudents = students.filter(s => s.centerId === centerId);
+                    students = students.filter(s => s.centerId !== centerId);
+                    
+                    // Remove associated applications
+                    const centerApplications = applications.filter(app => app.centerId === centerId);
+                    applications = applications.filter(app => app.centerId !== centerId);
+                    
+                    saveData();
+                    loadCenters();
+                    
+                    alert(`✅ Center "${centerName}" and all associated data have been permanently deleted!`);
+                } else {
+                    alert('❌ Error: Center not found.');
                 }
             }
         }

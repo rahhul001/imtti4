@@ -507,7 +507,8 @@
             const applicationsList = document.getElementById('applicationsList');
             applicationsList.innerHTML = '';
             
-            const allApplications = JSON.parse(localStorage.getItem('imtti_applications') || '[]');
+            // Use applications from database if available, otherwise fallback to localStorage
+            const allApplications = applications.length > 0 ? applications : JSON.parse(localStorage.getItem('imtti_applications') || '[]');
             
             if (allApplications.length === 0) {
                 applicationsList.innerHTML = '<p style="color: #e5e5e5;">No applications found.</p>';
@@ -644,22 +645,38 @@
             }
         }
         
-        function updateApplicationStatus(applicationNumber, status) {
-            const allApplications = JSON.parse(localStorage.getItem('imtti_applications') || '[]');
-            const application = allApplications.find(app => app.applicationNumber === applicationNumber);
-            
-            if (application) {
-                application.status = status;
-                application.statusUpdatedDate = new Date().toISOString();
-                localStorage.setItem('imtti_applications', JSON.stringify(allApplications));
-                loadApplications();
-                alert(`Application ${applicationNumber} has been ${status}!`);
+        async function updateApplicationStatus(applicationNumber, status) {
+            try {
+                // Find application in database
+                const application = applications.find(app => app.application_number === applicationNumber);
+                if (application) {
+                    await api.updateApplication(application.id, { status: status });
+                    alert(`Application ${applicationNumber} has been ${status}!`);
+                    await loadData();
+                    loadApplications();
+                } else {
+                    // Fallback to localStorage
+                    const allApplications = JSON.parse(localStorage.getItem('imtti_applications') || '[]');
+                    const localApp = allApplications.find(app => app.applicationNumber === applicationNumber);
+                    
+                    if (localApp) {
+                        localApp.status = status;
+                        localApp.statusUpdatedDate = new Date().toISOString();
+                        localStorage.setItem('imtti_applications', JSON.stringify(allApplications));
+                        loadApplications();
+                        alert(`Application ${applicationNumber} has been ${status}!`);
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating application status:', error);
+                alert('Error updating application status: ' + error.message);
             }
         }
         
         function filterApplicationsByStatus() {
             const status = document.getElementById('applicationStatusFilter').value;
-            const allApplications = JSON.parse(localStorage.getItem('imtti_applications') || '[]');
+            // Use applications from database if available, otherwise fallback to localStorage
+            const allApplications = applications.length > 0 ? applications : JSON.parse(localStorage.getItem('imtti_applications') || '[]');
             const applicationsList = document.getElementById('applicationsList');
             
             applicationsList.innerHTML = '';
@@ -1154,6 +1171,43 @@
             } catch (error) {
                 console.error('Error creating test center:', error);
                 alert('Error creating test center: ' + error.message);
+            }
+        }
+
+        // Register center function
+        async function registerCenter(event) {
+            event.preventDefault();
+            
+            const centerData = {
+                name: document.getElementById('centerName').value,
+                email: document.getElementById('newCenterEmail').value,
+                password: document.getElementById('newCenterPassword').value,
+                location: document.getElementById('centerLocation').value,
+                contact_person: document.getElementById('contactPerson').value,
+                phone: document.getElementById('centerPhone').value
+            };
+
+            try {
+                console.log('Creating center with data:', centerData);
+                const result = await api.createCenter(centerData);
+                console.log('Center created successfully:', result);
+                alert('Center registered successfully!');
+                
+                // Clear form
+                document.getElementById('centerName').value = '';
+                document.getElementById('newCenterEmail').value = '';
+                document.getElementById('newCenterPassword').value = '';
+                document.getElementById('centerLocation').value = '';
+                document.getElementById('contactPerson').value = '';
+                document.getElementById('centerPhone').value = '';
+                
+                // Reload data to show the new center
+                await loadData();
+                loadCenters();
+                
+            } catch (error) {
+                console.error('Error creating center:', error);
+                alert('Error registering center: ' + error.message);
             }
         }
 

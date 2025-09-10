@@ -1232,8 +1232,12 @@
         async function testDatabase() {
             try {
                 console.log('Testing database connection...');
+                const testConnection = await api.testConnection();
+                console.log('Database connection test:', testConnection);
+                
                 const testCenters = await api.getCenters();
                 console.log('Database test successful! Centers found:', testCenters.length);
+                console.log('Sample center data:', testCenters[0]);
                 return true;
             } catch (error) {
                 console.error('Database test failed:', error);

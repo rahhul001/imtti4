@@ -229,10 +229,17 @@
             
             try {
                 const response = await api.centerLogin(email, password);
+                console.log('Database login response:', response);
+                
                 if (response.success) {
                     // Store center email for dashboard access
                     localStorage.setItem('currentCenterEmail', email);
                     localStorage.setItem('currentCenterId', response.user.id);
+                    
+                    console.log('Login successful, stored in localStorage:', {
+                        email: email,
+                        id: response.user.id
+                    });
                     
                     showSuccess('Login successful! Redirecting to dashboard...');
                     
@@ -264,6 +271,11 @@
                     // Store center email for dashboard access
                     localStorage.setItem('currentCenterEmail', email);
                     localStorage.setItem('currentCenterId', center.id);
+                    
+                    console.log('Fallback login successful, stored in localStorage:', {
+                        email: email,
+                        id: center.id
+                    });
                     
                     showSuccess('Login successful! Redirecting to dashboard...');
                     

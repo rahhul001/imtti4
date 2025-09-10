@@ -519,20 +519,20 @@
                 const applicationDiv = document.createElement('div');
                 applicationDiv.className = 'list-item';
                 applicationDiv.innerHTML = `
-                    <h4>${application.fullName}</h4>
-                    <p><strong>Application Number:</strong> ${application.applicationNumber}</p>
+                    <h4>${application.full_name || application.fullName}</h4>
+                    <p><strong>Application Number:</strong> ${application.application_number || application.applicationNumber}</p>
                     <p><strong>Email:</strong> ${application.email}</p>
-                    <p><strong>Phone:</strong> ${application.phone}</p>
+                    <p><strong>Phone:</strong> ${application.phone || application.phoneNumber}</p>
                     <p><strong>Course:</strong> ${application.course}</p>
-                    <p><strong>Date of Birth:</strong> ${application.dateOfBirth}</p>
+                    <p><strong>Date of Birth:</strong> ${application.date_of_birth || application.dateOfBirth}</p>
                     <p><strong>Age:</strong> ${application.age}</p>
                     <p><strong>Status:</strong> <span style="color: ${getStatusColor(application.status)}">${application.status.toUpperCase()}</span></p>
-                    <p><strong>Submitted:</strong> ${new Date(application.submittedDate).toLocaleDateString()}</p>
+                    <p><strong>Submitted:</strong> ${new Date(application.created_at || application.submittedDate).toLocaleDateString()}</p>
                     <div style="margin-top: 1rem;">
-                        <button class="print-btn" onclick="viewApplication('${application.applicationNumber}')">View Details</button>
-                        <button class="print-btn" onclick="approveApplication('${application.applicationNumber}')" style="background: #10b981;">Approve</button>
-                        <button class="print-btn" onclick="rejectApplication('${application.applicationNumber}')" style="background: #ef4444;">Reject</button>
-                        <button class="print-btn" onclick="returnApplication('${application.applicationNumber}')" style="background: #f59e0b;">Return for Edit</button>
+                        <button class="print-btn" onclick="viewApplication('${application.application_number || application.applicationNumber}')">View Details</button>
+                        <button class="print-btn" onclick="approveApplication('${application.application_number || application.applicationNumber}')" style="background: #10b981;">Approve</button>
+                        <button class="print-btn" onclick="rejectApplication('${application.application_number || application.applicationNumber}')" style="background: #ef4444;">Reject</button>
+                        <button class="print-btn" onclick="returnApplication('${application.application_number || application.applicationNumber}')" style="background: #f59e0b;">Return for Edit</button>
                     </div>
                 `;
                 applicationsList.appendChild(applicationDiv);
@@ -649,24 +649,14 @@
             try {
                 // Find application in database
                 const application = applications.find(app => app.application_number === applicationNumber);
-                if (application) {
-                    await api.updateApplication(application.id, { status: status });
-                    alert(`Application ${applicationNumber} has been ${status}!`);
-                    await loadData();
-                    loadApplications();
-                } else {
-                    // Fallback to localStorage
-                    const allApplications = JSON.parse(localStorage.getItem('imtti_applications') || '[]');
-                    const localApp = allApplications.find(app => app.applicationNumber === applicationNumber);
-                    
-                    if (localApp) {
-                        localApp.status = status;
-                        localApp.statusUpdatedDate = new Date().toISOString();
-                        localStorage.setItem('imtti_applications', JSON.stringify(allApplications));
-                        loadApplications();
-                        alert(`Application ${applicationNumber} has been ${status}!`);
-                    }
+                if (!application) {
+                    throw new Error('Application not found in database');
                 }
+                
+                await api.updateApplication(application.id, { status: status });
+                alert(`Application ${applicationNumber} has been ${status}!`);
+                await loadData();
+                loadApplications();
             } catch (error) {
                 console.error('Error updating application status:', error);
                 alert('Error updating application status: ' + error.message);
@@ -675,13 +665,11 @@
         
         function filterApplicationsByStatus() {
             const status = document.getElementById('applicationStatusFilter').value;
-            // Use applications from database if available, otherwise fallback to localStorage
-            const allApplications = applications.length > 0 ? applications : JSON.parse(localStorage.getItem('imtti_applications') || '[]');
             const applicationsList = document.getElementById('applicationsList');
             
             applicationsList.innerHTML = '';
             
-            const filteredApplications = status ? allApplications.filter(app => app.status === status) : allApplications;
+            const filteredApplications = status ? applications.filter(app => app.status === status) : applications;
             
             if (filteredApplications.length === 0) {
                 applicationsList.innerHTML = '<p style="color: #e5e5e5;">No applications found.</p>';
@@ -1075,17 +1063,11 @@
                 try {
                     await api.updateCenter(centerId, { is_active: false });
                     alert('Center has been suspended successfully!');
+                    await loadData();
                     loadCenters();
                 } catch (error) {
                     console.error('Error suspending center:', error);
-                    // Fallback to localStorage
-                    const center = centers.find(c => c.id === centerId);
-                    if (center) {
-                        center.is_active = false;
-                        saveData();
-                        loadCenters();
-                        alert('Center has been suspended successfully!');
-                    }
+                    alert('Error suspending center: ' + error.message);
                 }
             }
         }
@@ -1095,17 +1077,11 @@
                 try {
                     await api.updateCenter(centerId, { is_active: true });
                     alert('Center has been unsuspended successfully!');
+                    await loadData();
                     loadCenters();
                 } catch (error) {
                     console.error('Error unsuspending center:', error);
-                    // Fallback to localStorage
-                    const center = centers.find(c => c.id === centerId);
-                    if (center) {
-                        center.is_active = true;
-                        saveData();
-                        loadCenters();
-                        alert('Center has been unsuspended successfully!');
-                    }
+                    alert('Error unsuspending center: ' + error.message);
                 }
             }
         }
@@ -1170,28 +1146,7 @@
                 
             } catch (error) {
                 console.error('Error deleting center:', error);
-                
-                // Fallback to localStorage
-                const centerIndex = centers.findIndex(c => c.id === centerId);
-                if (centerIndex !== -1) {
-                    // Remove center
-                    centers.splice(centerIndex, 1);
-                    
-                    // Remove associated students
-                    const centerStudents = students.filter(s => s.centerId === centerId);
-                    students = students.filter(s => s.centerId !== centerId);
-                    
-                    // Remove associated applications
-                    const centerApplications = applications.filter(app => app.centerId === centerId);
-                    applications = applications.filter(app => app.centerId !== centerId);
-                    
-                    saveData();
-                    loadCenters();
-                    
-                    alert(`✅ Center "${centerName}" and all associated data have been permanently deleted!`);
-                } else {
-                    alert('❌ Error: Center not found.');
-                }
+                alert('❌ Error deleting center: ' + error.message);
             }
         }
         
@@ -1209,11 +1164,7 @@
                 });
             } catch (error) {
                 console.error('Error loading data from database:', error);
-                // Fallback to localStorage
-                centers = JSON.parse(localStorage.getItem('imtti_centers') || '[]');
-                students = JSON.parse(localStorage.getItem('imtti_students') || '[]');
-                applications = JSON.parse(localStorage.getItem('imtti_applications') || '[]');
-                console.log('Falling back to localStorage');
+                throw new Error('Database connection failed. Please check your connection and try again.');
             }
         }
 
@@ -1315,17 +1266,21 @@
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('Admin dashboard initializing...');
             
-            // Test database connection first
-            const databaseWorking = await testDatabase();
-            if (databaseWorking) {
+            try {
+                // Test database connection first
+                const databaseWorking = await testDatabase();
+                if (!databaseWorking) {
+                    throw new Error('Database connection failed');
+                }
+                
                 console.log('Using database for data storage');
                 await loadData();
-            } else {
-                console.log('Falling back to localStorage');
-                loadData();
+                loadOverview();
+            } catch (error) {
+                console.error('Failed to initialize admin dashboard:', error);
+                alert('❌ Database connection failed. Please refresh the page and try again.\n\nIf the problem persists, please contact the administrator.');
+                // Don't load anything if database fails
             }
-            
-            loadOverview();
         });
     </script>
     <script src="api-client-complete.js"></script>

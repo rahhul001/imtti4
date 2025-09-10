@@ -458,7 +458,7 @@
             }
         }
         
-        function saveApplicationData(photoBase64) {
+        async function saveApplicationData(photoBase64) {
             // Get center information from URL or localStorage
             const urlParams = new URLSearchParams(window.location.search);
             const centerEmail = urlParams.get('centerEmail') || localStorage.getItem('currentCenterEmail');
@@ -466,28 +466,26 @@
             
             // Collect form data
             const formData = {
-                id: Date.now().toString(),
-                applicationNumber: document.getElementById('appNumber').textContent,
-                fullName: document.getElementById('fullName').value,
+                application_number: document.getElementById('appNumber').textContent,
+                full_name: document.getElementById('fullName').value,
                 email: document.getElementById('email').value,
-                phoneNumber: document.getElementById('phone').value,
-                dateOfBirth: document.getElementById('dateOfBirth').value,
+                phone: document.getElementById('phone').value,
+                date_of_birth: document.getElementById('dateOfBirth').value,
                 age: document.getElementById('age').value,
                 sex: document.getElementById('sex').value,
-                motherTongue: document.getElementById('motherTongue').value,
-                maritalStatus: document.getElementById('maritalStatus').value,
+                mother_tongue: document.getElementById('motherTongue').value,
+                marital_status: document.getElementById('maritalStatus').value,
                 community: document.getElementById('community').value,
-                fatherHusbandName: document.getElementById('fatherHusbandName').value,
-                localAddress: document.getElementById('localAddress').value,
-                permanentAddress: document.getElementById('permanentAddress').value,
-                placeOfBirth: document.getElementById('placeOfBirth').value,
+                father_husband_name: document.getElementById('fatherHusbandName').value,
+                local_address: document.getElementById('localAddress').value,
+                permanent_address: document.getElementById('permanentAddress').value,
+                place_of_birth: document.getElementById('placeOfBirth').value,
                 course: document.getElementById('course').value,
                 photo: photoBase64,
                 education: [],
                 status: 'pending',
-                submittedDate: new Date().toISOString(),
-                centerId: centerId,
-                centerEmail: centerEmail
+                center_id: centerId,
+                center_email: centerEmail
             };
 
             // Collect education entries
@@ -504,17 +502,23 @@
                 formData.education.push(education);
             });
 
-            // Save to localStorage
-            let applications = JSON.parse(localStorage.getItem('imtti_applications') || '[]');
-            applications.push(formData);
-            localStorage.setItem('imtti_applications', JSON.stringify(applications));
-
-            alert('Application submitted successfully! Your application number is: ' + formData.applicationNumber);
-            
-            // Reset form
-            document.getElementById('applicationForm').reset();
-            document.getElementById('photoPreview').style.display = 'none';
-            document.getElementById('appNumber').textContent = generateApplicationNumber();
+            try {
+                console.log('Saving application to database:', formData);
+                // Save to database
+                const result = await api.createApplication(formData);
+                console.log('Application saved to database:', result);
+                
+                alert('Application submitted successfully! Your application number is: ' + formData.application_number);
+                
+                // Reset form
+                document.getElementById('applicationForm').reset();
+                document.getElementById('photoPreview').style.display = 'none';
+                document.getElementById('appNumber').textContent = generateApplicationNumber();
+                
+            } catch (error) {
+                console.error('Error saving application to database:', error);
+                alert('❌ Error submitting application: ' + error.message);
+            }
         }
 
         // Save as draft
@@ -528,5 +532,6 @@
             document.getElementById('appNumber').textContent = generateApplicationNumber();
         });
     </script>
+    <script src="api-client-complete.js"></script>
 </body>
 </html>

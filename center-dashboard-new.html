@@ -523,25 +523,7 @@
                 });
             } catch (error) {
                 console.error('Error loading data from database:', error);
-                // Fallback to localStorage
-                const centersData = localStorage.getItem('imtti_centers');
-                const studentsData = localStorage.getItem('imtti_students');
-                const applicationsData = localStorage.getItem('imtti_applications');
-                const marksData = localStorage.getItem('imtti_marks');
-
-                if (centersData) {
-                    centers = JSON.parse(centersData);
-                }
-                if (studentsData) {
-                    students = JSON.parse(studentsData);
-                }
-                if (applicationsData) {
-                    applications = JSON.parse(applicationsData);
-                }
-                if (marksData) {
-                    marks = JSON.parse(marksData);
-                }
-                console.log('Falling back to localStorage');
+                throw new Error('Database connection failed. Please check your connection and try again.');
             }
         }
 
@@ -636,12 +618,12 @@
             
             applicationsList.innerHTML = centerApplications.map(app => `
                 <div class="list-item">
-                    <h4>${app.fullName}</h4>
+                    <h4>${app.full_name || app.fullName}</h4>
                     <p><strong>Email:</strong> ${app.email}</p>
-                    <p><strong>Phone:</strong> ${app.phoneNumber}</p>
-                    <p><strong>Application Number:</strong> ${app.applicationNumber}</p>
+                    <p><strong>Phone:</strong> ${app.phone || app.phoneNumber}</p>
+                    <p><strong>Application Number:</strong> ${app.application_number || app.applicationNumber}</p>
                     <p><strong>Status:</strong> <span class="status-badge status-${app.status}">${app.status.toUpperCase()}</span></p>
-                    <p><strong>Submitted:</strong> ${new Date(app.submittedDate).toLocaleDateString()}</p>
+                    <p><strong>Submitted:</strong> ${new Date(app.created_at || app.submittedDate).toLocaleDateString()}</p>
                     <div class="action-buttons">
                         <button class="btn-small btn-view" onclick="viewApplication('${app.id}')">
                             <i class="fas fa-eye"></i> View
@@ -739,34 +721,58 @@
         }
 
         // Save student with photo
-        function saveStudentWithPhoto(name, email, phone, course, address, dateOfBirth, photoBase64, registrationNumber) {
-            const student = {
-                id: Date.now().toString(),
+        async function saveStudentWithPhoto(name, email, phone, course, address, dateOfBirth, photoBase64, registrationNumber) {
+            const studentData = {
                 name: name,
                 email: email,
                 phone: phone,
                 course: course,
                 address: address,
-                dateOfBirth: dateOfBirth,
+                date_of_birth: dateOfBirth,
                 photo: photoBase64,
-                registrationNumber: registrationNumber,
-                centerId: currentCenter.id,
-                registeredDate: new Date().toISOString(),
+                registration_id: registrationNumber,
+                center_id: currentCenter.id,
                 status: 'registered',
-                studentId: registrationNumber,
                 password: dateOfBirth ? dateOfBirth.replace(/-/g, '') : ''
             };
             
-            students.push(student);
-            saveData();
-            loadStudents();
-            loadOverview();
-            
-            alert(`Student registered successfully! Registration Number: ${registrationNumber}`);
-            
-            // Clear form
-            document.getElementById('studentForm').reset();
-            document.getElementById('photoPreview').style.display = 'none';
+            try {
+                console.log('Saving student to database:', studentData);
+                const result = await api.createStudent(studentData);
+                console.log('Student saved to database:', result);
+                
+                // Update local data
+                const student = {
+                    id: result.id || Date.now().toString(),
+                    name: name,
+                    email: email,
+                    phone: phone,
+                    course: course,
+                    address: address,
+                    dateOfBirth: dateOfBirth,
+                    photo: photoBase64,
+                    registrationNumber: registrationNumber,
+                    centerId: currentCenter.id,
+                    registeredDate: new Date().toISOString(),
+                    status: 'registered',
+                    studentId: registrationNumber,
+                    password: dateOfBirth ? dateOfBirth.replace(/-/g, '') : ''
+                };
+                
+                students.push(student);
+                loadStudents();
+                loadOverview();
+                
+                alert(`Student registered successfully! Registration Number: ${registrationNumber}`);
+                
+                // Clear form
+                document.getElementById('studentForm').reset();
+                document.getElementById('photoPreview').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Error saving student to database:', error);
+                alert('❌ Error registering student: ' + error.message);
+            }
         }
 
         // Generate registration number
@@ -1061,8 +1067,8 @@
                 }
             } catch (error) {
                 console.error('Error initializing center dashboard:', error);
-                alert('Error loading dashboard. Please try again.');
-                window.location.href = 'center-login.html';
+                alert('❌ Database connection failed. Please refresh the page and try again.\n\nIf the problem persists, please contact the administrator.');
+                // Don't redirect to login if database fails - let user retry
             }
         });
 

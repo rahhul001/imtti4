@@ -211,10 +211,7 @@
                 return centers;
             } catch (error) {
                 console.error('Error loading centers from database:', error);
-                // Fallback to localStorage
-                const centers = JSON.parse(localStorage.getItem('imtti_centers') || '[]');
-                console.log('Falling back to localStorage, centers found:', centers.length);
-                return centers;
+                throw new Error('Database connection failed. Please check your connection and try again.');
             }
         }
 
@@ -252,41 +249,7 @@
                 }
             } catch (error) {
                 console.error('Center login error:', error);
-                console.log('Falling back to localStorage...');
-                
-                // Fallback to localStorage
-                const centers = await loadData();
-                console.log('Available centers for fallback:', centers);
-                
-                const center = centers.find(c => c.email === email && c.password === password);
-                console.log('Found center:', center);
-                
-                if (center) {
-                    // Check if center is suspended
-                    if (center.is_active === false) {
-                        showError('This center account has been suspended. Please contact the administrator.');
-                        return;
-                    }
-                    
-                    // Store center email for dashboard access
-                    localStorage.setItem('currentCenterEmail', email);
-                    localStorage.setItem('currentCenterId', center.id);
-                    
-                    console.log('Fallback login successful, stored in localStorage:', {
-                        email: email,
-                        id: center.id
-                    });
-                    
-                    showSuccess('Login successful! Redirecting to dashboard...');
-                    
-                    // Redirect to center dashboard
-                    setTimeout(() => {
-                        window.location.href = 'center-dashboard-new.html';
-                    }, 1000);
-                } else {
-                    console.log('Center not found with email:', email);
-                    showError('Invalid email or password. Please check your credentials.');
-                }
+                showError('❌ Database connection failed. Please check your connection and try again.');
             }
         }
 

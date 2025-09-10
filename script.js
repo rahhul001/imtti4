@@ -214,14 +214,7 @@ async function adminLogin(event) {
         }
     } catch (error) {
         console.error('Admin login error:', error);
-        // Fallback to hardcoded credentials
-        if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
-            currentUser = { type: 'admin', email: email };
-            closeLoginModal();
-            window.location.href = 'admin-dashboard.html';
-        } else {
-            showNotification('Invalid admin credentials', 'error');
-        }
+        showNotification('❌ Database connection failed. Please check your connection and try again.', 'error');
     }
 }
 
@@ -245,28 +238,7 @@ async function centerLogin(event) {
         }
     } catch (error) {
         console.error('Center login error:', error);
-        // Fallback to localStorage
-        console.log('Center login attempt:', email);
-        console.log('Available centers:', centers);
-        
-        const center = centers.find(c => c.email === email && c.password === password);
-        console.log('Found center:', center);
-        
-        if (center) {
-            if (center.is_active === false) {
-                showNotification('This center account has been suspended. Please contact the administrator.', 'error');
-                return;
-            }
-            
-            currentUser = { type: 'center', email: email, centerId: center.id };
-            closeLoginModal();
-            localStorage.setItem('currentCenterEmail', email);
-            console.log('Redirecting to center dashboard...');
-            window.location.href = 'center-login.html';
-        } else {
-            console.log('Center not found or invalid credentials');
-            showNotification('Invalid center credentials', 'error');
-        }
+        showNotification('❌ Database connection failed. Please check your connection and try again.', 'error');
     }
 }
 
